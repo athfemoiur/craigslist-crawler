@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import requests
 from bs4 import BeautifulSoup
 from parser import AdvertisementParser
-from config import base_link, default_cities, storage_type
+from config import base_link, default_cities, storage_type, HEADER
 from storage import MongoStorage, FileStorage
 
 
@@ -18,9 +18,9 @@ class BaseCrawl(ABC):
         pass
 
     @staticmethod
-    def get_page(url):
+    def get_page(url, headers=HEADER):
         try:
-            response = requests.get(url)
+            response = requests.get(url, headers=headers)
         except requests.HTTPError:
             print('unable to get response')
             return None

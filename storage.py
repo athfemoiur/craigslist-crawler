@@ -1,8 +1,20 @@
 import json
+from abc import ABC, abstractmethod
+
 from mongo import MongoDatabase
 
 
-class MongoStorage:
+class AbstractStorage(ABC):
+    @abstractmethod
+    def store(self, data, *args):
+        pass
+
+    @abstractmethod
+    def load(self, *args, **kwargs):
+        pass
+
+
+class MongoStorage(AbstractStorage):
     def __init__(self, data_type):
         self.mongo = MongoDatabase()
         self.data_type = data_type
@@ -28,11 +40,11 @@ class MongoStorage:
                                                           {"$set": {"flag": True}})
 
 
-class FileStorage:
+class FileStorage(AbstractStorage):
     def __init__(self, data_type):
         self.data_type = data_type
 
-    def store(self, data, filename):
+    def store(self, data, filename=None):
         if self.data_type == 'adv_links':
             file_path = f"data/{filename}.json"
         else:
