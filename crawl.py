@@ -1,10 +1,13 @@
-import json
 from abc import ABC, abstractmethod
+from queue import Queue
+from threading import Thread
+
 import requests
 from bs4 import BeautifulSoup
 from parser import AdvertisementParser
 from config import base_link, default_cities, storage_type, HEADER
 from storage import MongoStorage, FileStorage
+from tasks import download_image
 
 
 class BaseCrawl(ABC):
@@ -73,57 +76,35 @@ class DataCrawler(BaseCrawl):
             self.links = self.storage.load('adv_links', {'flag': False})
         else:
             self.links = self.storage.load('lnk')
+        self.queue = self.create_queue()
 
     def store(self, data, *args):
         self.storage.store(data, *args)
 
-    def start(self, store=False):
-        for lnk in self.links:
-            response = self.get_page(lnk['url'])
+    def create_queue(self):
+        queue = Queue()
+        for link in self.links:
+            queue.put(link)
+        return queue
+
+    def crawl(self):
+        while True:
+            link = self.queue.get()
+
+            response = self.get_page(link['url'])
             data = self.parser.parse(response.text)
-            if store:
-                self.store(data, data.get('post_id', 'no id!'))
-                if isinstance(self.storage, MongoStorage):
-                    self.storage.update_flag(lnk)
-                else:
-                    lnk["flag"] = True
-        if isinstance(self.storage, FileStorage):
-            with open('data/adv_links.json', 'w') as f:
-                f.write(json.dumps(self.links))
+            print('data received')
+            download_image.delay(data)
 
-
-class ImageDownloader(BaseCrawl):
-    def __init__(self):
-        self.storage = MongoStorage("images")
-        self.adv = self.storage.load('adv_data')
-
-    @staticmethod
-    def get_image(url):
-        try:
-            response = requests.get(url, stream=True)
-        except requests.HTTPError:
-            print('unable to get response')
-            return None
-        return response
-
-    def store(self, data, adv_id, img_number=None):
-        filename = f"{adv_id}-{img_number}"
-        self.save_to_disk(data, filename)
-
-    @staticmethod
-    def save_to_disk(response, filename):
-        with open(f"data/images/{filename}.jpg", 'wb') as f:
-            total = response.headers.get("content-length")
-            if total is None:
-                f.write(response.content)
-            else:
-                for data in response.iter_content(chunk_size=4096):
-                    f.write(data)
+            self.store(data, data.get('post_id', 'no id!'))
+            if isinstance(self.storage, MongoStorage):
+                self.storage.update_flag(link)
+            self.queue.task_done()
+            if self.queue.empty():
+                break
 
     def start(self):
-        for adv in self.adv:
-            counter = 1
-            for img in adv["image"]:
-                response = self.get_image(img["url"])
-                self.store(response, adv["post_id"], counter)
-                counter += 1
+        for _ in range(10):
+            thread = Thread(target=self.crawl)
+            thread.start()
+        self.queue.join()
