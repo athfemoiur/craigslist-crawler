@@ -22,15 +22,16 @@ class AdvertisementParser:
         if price_tag:
             data['price'] = price_tag.text
 
-        # body_tag = soup.find('section', {'id': 'postingbody'})
-        # if body_tag:
-        #     data['body'] = body_tag.text
+        body_tag = soup.find('section', {'id': 'postingbody'})
+        if body_tag:
+            data['body'] = body_tag.text
 
         post_id_tag = soup.select_one('body > section > section > section > div.postinginfos > p:nth-child(1)')
         if post_id_tag:
             data['post_id'] = post_id_tag.text.replace('post id: ', '')
 
-        created_time_tag = soup.select_one('body > section > section > section > div.postinginfos > p:nth-child(2) > time')
+        created_time_tag = soup.select_one(
+            'body > section > section > section > div.postinginfos > p:nth-child(2) > time')
         if created_time_tag:
             data['created_time'] = created_time_tag['datetime']
 

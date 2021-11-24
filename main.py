@@ -1,6 +1,6 @@
 import sys
 
-from crawl import LinkCrawler, DataCrawler, ImageDownloader
+from crawl import LinkCrawler, DataCrawler
 
 if __name__ == '__main__':
     switch = sys.argv[1]
@@ -9,7 +9,4 @@ if __name__ == '__main__':
         crawler_l.start()
     elif switch == 'data':
         crawler_d = DataCrawler()
-        crawler_d.start(store=True)
-    elif switch == 'image':
-        crawler_img = ImageDownloader()
-        crawler_img.start()
+        crawler_d.start()
